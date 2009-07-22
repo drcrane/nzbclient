@@ -36,6 +36,7 @@ public class YEncDecoder implements YEncConstants {
 
 	//second constructor
 	InputStream toDecode;
+	boolean bitsMissing = false;
 
 	static final String CLASSNAME = YEncDecoder.class.getName();
 	private static Logger logger = Logger.getLogger(CLASSNAME);
@@ -99,6 +100,7 @@ public class YEncDecoder implements YEncConstants {
 					 * here and then check the position,
 					 * this way is probably better though. */
 					if ((ypart.begin - 1) != bytesWritten) {
+						bitsMissing = true;
 						out.flush();
 						fos.getChannel().position(ypart.begin - 1);
 					}
@@ -135,6 +137,10 @@ public class YEncDecoder implements YEncConstants {
 			e.printStackTrace();
 		}
 		return null;
+	}
+	
+	public boolean segmentsMissing() {
+		return bitsMissing;
 	}
 	
 	/**

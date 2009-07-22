@@ -15,7 +15,14 @@
  */
 package com.cheesmo.nzb.client;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -32,9 +39,14 @@ import com.cheesmo.nzb.util.NzbUtils;
 
 public final class NzbClient {
 
+	public static final String COMPLETED_FILES = "CompletedFilesList.nzbclient";
+	public static final String CORRUPT_FILES = "CorruptFiles.nzbclient"; 
+	
 	private ClientConfig config;
 	private Options options;
 	private ConnectionPool pool;
+	private List<String> downloadedFiles;
+	private List<String> corruptFiles;
 
 	public NzbClient(String[] args) {
 
@@ -67,7 +79,7 @@ public final class NzbClient {
 		
 		if (options.isJustDecode()) {
 			List<String> fileList = this.getListOfFiles(config.getCacheDir());
-			launchDecode(fileList);
+			//launchDecode(fileList);
 			return;
 		}
 		
@@ -108,20 +120,80 @@ public final class NzbClient {
 		return null;
 	}
 
+	public static List<String> loadFileList(String filename) {
+		List<String> fileList;
+		fileList = new ArrayList<String>();
+		try {
+			String line;
+			BufferedReader br = new BufferedReader(new FileReader(filename));
+			while ((line = br.readLine()) != null) {
+				line = line.trim();
+				if (!line.equals(""))
+					fileList.add(line.trim());
+			}
+			br.close();
+		} catch (IOException ioe) {
+			System.err.println("Failed to load filelist from: " + filename);
+		}
+		return fileList;
+	}
+	
+	public static void saveFileList(String filename, List<String> fileList) {
+		try {
+			java.io.File file;
+			file = new java.io.File(filename);
+			if (file.exists()) {
+				file.delete();
+			}
+			BufferedWriter bw = new BufferedWriter(new FileWriter(filename));
+			for (int i = 0; i < fileList.size(); i++) {
+				bw.write(fileList.get(i) + "\r\n");
+			}
+			bw.flush();
+			bw.close();
+		} catch (IOException ioe) {
+			System.err.println("Failed to save filelist to: " + filename);
+		}
+		return;
+	}
+	
 	public void start(String nzbPath) {
 
+		Runtime.getRuntime().addShutdownHook(new Thread() {
+			public void run() {
+				NzbClient.saveFileList(config.getCacheDir() + java.io.File.separator + CORRUPT_FILES, corruptFiles);
+				NzbClient.saveFileList(config.getCacheDir() + java.io.File.separator + COMPLETED_FILES, downloadedFiles);
+			}			
+		});
+		
 		NZB nzb = getNzb(nzbPath);
-		List<File> files = nzb.getFiles();
+		List <File> files = nzb.getFiles();
+		corruptFiles = loadFileList(config.getCacheDir() + java.io.File.separator + CORRUPT_FILES);
+		downloadedFiles = loadFileList(config.getCacheDir() + java.io.File.separator + COMPLETED_FILES);
 		int fileCount = 1;
 		for (Iterator<File> i = files.iterator(); i.hasNext(); ) {
 			File file = i.next();
+			
+			if (downloadedFiles.contains(file.getSubject())) {
+				System.out.println("Already got: " + file.getSubject());
+				continue;
+			}
+			
+			int segCount = 1;
+			
 			System.out.println("File " + fileCount + "/" + files.size() + " " + file.getSubject());
 			List<String> segmentNames = new ArrayList<String>();
 			List<DownloadThread> downloadThreads = new ArrayList<DownloadThread>();
 
 			for (Iterator<Segment> j = file.getSegments().iterator(); j.hasNext(); ) {
 				Segment seg = j.next();
-				String downloadName = file.getSubject().hashCode() + "_" + seg.getNumber() + ".yenc";
+				String downloadName = Integer.toString(file.getSubject().hashCode()) + "_" + Integer.toString(seg.getNumber()) + ".yenc";
+				if ((new java.io.File(config.getCacheDir() + java.io.File.separator + downloadName)).exists()) {
+					//System.out.println("Already got segment: " + downloadName);
+					segCount ++;
+					segmentNames.add(downloadName);
+					continue;
+				}
 
 				//Thread thread = createDownloadSegThread(segCount, file.getGroups().get(0).getName(), "<" + seg.getString() + ">", downloadName);
 				DownloadThread thread = createDownloadSegThread(pool, file.getGroups().get(0).getName(), "<" + seg.getString() + ">", downloadName);
@@ -139,7 +211,6 @@ public final class NzbClient {
 			}
 
 			//Wait for all the threads to finish
-			int segCount = 1;
 			boolean failure = false;
 			for (Iterator<DownloadThread> t = downloadThreads.iterator(); t.hasNext(); ) {
 				try {
@@ -160,10 +231,14 @@ public final class NzbClient {
 			}
 
 			if (!failure) {
-				launchDecode(segmentNames);
+				launchDecode(segmentNames, corruptFiles);
+				downloadedFiles.add(file.getSubject());
 			} else {
 				System.err.println("Couldn't download all segments.");
-				launchDecode(segmentNames);
+				launchDecode(segmentNames, corruptFiles);
+				if (segmentNames.size() > 0) {
+					downloadedFiles.add(file.getSubject());
+				}
 				/*
 				 * Segments do not need cleaning up, already done by SplitFileInputStream
 				 * (but only if the user wanted ;-))
@@ -173,16 +248,14 @@ public final class NzbClient {
 				}
 				*/
 			}
-
 			fileCount++;
 		}
-		
+		NzbClient.saveFileList(config.getCacheDir() + java.io.File.separator + COMPLETED_FILES, downloadedFiles);
+		NzbClient.saveFileList(config.getCacheDir() + java.io.File.separator + CORRUPT_FILES, corruptFiles);
 	}
 	
-	private void launchDecode(List<String> segmentNames) {
-
+	private void launchDecode(List<String> segmentNames, List<String> corruptFiles) {
 		try {
-
 			//Make sure we decode in correct order
 			Collections.sort(segmentNames, new Comparator<String> () {
 
@@ -196,6 +269,9 @@ public final class NzbClient {
 			System.out.println("Decoding . . .");
 			YEncDecoder decoder = new YEncDecoder(sfis, config.getDownloadDir());
 			String fileDecoded = decoder.decode();
+			if (decoder.segmentsMissing() && fileDecoded != null) {
+				corruptFiles.add(fileDecoded);
+			}
 			
 			if (fileDecoded != null) {
 				System.out.println("Decoding " + fileDecoded + " complete.");
@@ -217,7 +293,6 @@ public final class NzbClient {
 	}
 
 	private NZB getNzb(String path) {
-
 		return NzbUtils.parseFile(path);
 	}
 

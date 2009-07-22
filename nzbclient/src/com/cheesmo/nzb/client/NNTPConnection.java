@@ -15,6 +15,7 @@
  */
 package com.cheesmo.nzb.client;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.Reader;
@@ -73,13 +74,16 @@ public class NNTPConnection {
 	}
 
 	public boolean downloadSegment(String group, String string, String downloadName) {
+		File file;
+		file = new File(config.getCacheDir() + java.io.File.separator  + downloadName);
+		FileOutputStream fos = null;
 		try {
 			tryConnect();
 			client.selectNewsgroup(group);
 			Reader reader = client.retrieveArticleBody(string);
 			
 			if (reader != null) {
-				FileOutputStream fos = new FileOutputStream(config.getCacheDir() + java.io.File.separator  + downloadName);
+				fos = new FileOutputStream(file);
 				char [] buffer = new char[512];
 				int charsRead = reader.read(buffer);
 				while (charsRead > -1 && client.isConnected()) {
@@ -100,11 +104,23 @@ public class NNTPConnection {
 			
 		} catch (SocketException e) {
 			System.out.println("Client disconnected.");
+			System.out.println("Deleting incomplete segment: " + downloadName);
+			try {
+				if (fos != null) {
+					fos.close();
+				}
+			} catch (IOException ioe) {
+				System.err.println("Could not close outputstream, WEIRD!.");
+				e.printStackTrace();
+			}
+			if (file.exists()) {
+				/* file would be incomplete, will cause a problem for decoding */
+				file.delete();
+			}
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return false;
 	}
-
 }
