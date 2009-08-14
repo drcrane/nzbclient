@@ -22,6 +22,7 @@ import java.io.Reader;
 import java.net.SocketException;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
+import java.util.Date;
 
 import org.apache.commons.net.nntp.NNTPClient;
 
@@ -44,9 +45,11 @@ public class NNTPConnection {
 	
 	
 	private void tryConnect() throws SocketException, IOException {
-
 		if (!client.isConnected()) {
 			try {
+				if (config.getSSL()) {
+					client.setSocketFactory(DefaultSSLSocketFactory.getInstance());
+				}
 				client.connect(config.getServer(), config.getPort());
 				client.authenticate(config.getUsername(), config.getPassword());
 			} catch (Exception e) {
@@ -72,10 +75,10 @@ public class NNTPConnection {
 			}
 		}
 	}
-
+	
 	public boolean downloadSegment(String group, String string, String downloadName) {
 		File file;
-		file = new File(config.getCacheDir() + java.io.File.separator  + downloadName);
+		file = new File(config.getCacheDir() + java.io.File.separator + downloadName);
 		FileOutputStream fos = null;
 		try {
 			tryConnect();

@@ -28,6 +28,10 @@ public class SegmentImpl implements Segment {
 		this.number = number;
 		this.string = string;
 	}
+	
+	public SegmentImpl() {
+		
+	}
 
 	public int getBytes() {
 		return bytes;

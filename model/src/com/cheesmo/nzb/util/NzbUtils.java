@@ -18,9 +18,16 @@ package com.cheesmo.nzb.util;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
+import net.n3.nanoxml.IXMLBuilder;
+import net.n3.nanoxml.IXMLParser;
+import net.n3.nanoxml.IXMLReader;
+import net.n3.nanoxml.StdXMLReader;
+import net.n3.nanoxml.XMLParserFactory;
+
 import org.xml.sax.SAXException;
 
 import com.cheesmo.nzb.model.NZB;
+import com.cheesmo.nzb.model.impl.NanoXMLNzbParser;
 import com.cheesmo.nzb.model.impl.NzbParser;
 
 public class NzbUtils {
@@ -32,6 +39,20 @@ public class NzbUtils {
 	 * @return an NZB if the file was parsed successfully, otherwise null is returned.
 	 */
 	public static NZB parseFile(String pathToFile) {
+		
+		try {
+			IXMLParser parser = XMLParserFactory.createDefaultXMLParser();
+			IXMLReader reader = StdXMLReader.fileReader(pathToFile);
+			IXMLBuilder builder;
+			builder = new NanoXMLNzbParser();
+			parser.setReader(reader);
+			parser.setBuilder(builder);
+			return (NZB)parser.parse();
+		} catch (Exception e) {
+			System.err.println("Could not parse " + pathToFile + ":  " + e.getMessage());
+		}
+		
+		/*
 		NzbParser parser = new NzbParser();
 		try {
 			return parser.parse(pathToFile);
@@ -42,6 +63,7 @@ public class NzbUtils {
 		} catch (IOException e) {
 			System.err.println("Could not parse " + pathToFile + ":  " + e.getMessage());
 		}
+		*/
 		return null;
 	}
 

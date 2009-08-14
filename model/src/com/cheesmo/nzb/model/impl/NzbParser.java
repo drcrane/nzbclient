@@ -49,13 +49,19 @@ public class NzbParser extends DefaultHandler {
 	
 	
 	public NZB parse(String path) throws SAXException, FileNotFoundException, IOException {
+		
 		return parse(new InputSource(path));
 	}
 	
 	public NZB parse(InputSource source) throws SAXException, IOException {
 		NzbParser parser = new NzbParser();
+		//IXMLReader rdr = StdXMLReader.fileReader("fd");
+		
 		XMLReader reader = XMLReaderFactory.createXMLReader();
+		//reader.setFeature("http://xml.org/sax/features/validation", false);
 		reader.setContentHandler(parser);
+		//SAXAdapter f = new SAXAdapter();
+		//f.setDocumentHandler(parser);
 		reader.parse(source);
 		return parser.nzb;
 	}

@@ -71,6 +71,9 @@ public class YEncDecoder implements YEncConstants {
 			
 			byte [] bytes = new byte[512];
 			int bytesRead = readLine(input, bytes);
+			if (bytesRead == -1) {
+				return null;
+			}
 			long bytesWritten = 0;
 			String line = new String(bytes, 0, bytesRead);
 			String outputName = null;
@@ -85,7 +88,9 @@ public class YEncDecoder implements YEncConstants {
 					decoding = true;
 					if (out == null) {
 						YBegin ybegin = new YBegin(line);
+						System.out.println("-- " + line);
 						outputName = ybegin.name;
+						System.out.println("Name: " + outputName);
 						out = new BufferedOutputStream(fos = new FileOutputStream(new File(destDir, outputName)));
 					}
 				} else if (line.startsWith(YMARKER_END)) {

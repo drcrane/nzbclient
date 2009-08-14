@@ -37,6 +37,11 @@ public class FileImpl implements File {
 		this.poster = poster;
 		this.subject = subject;
 	}
+	
+	public FileImpl() {
+		groups = new ArrayList();
+		segments = new ArrayList();
+	}
 
 	public List getSegments() {
 		return segments;

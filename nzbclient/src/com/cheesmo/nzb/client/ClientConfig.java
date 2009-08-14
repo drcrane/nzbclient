@@ -203,13 +203,16 @@ public class ClientConfig {
 	public String getServer() {
 		return prefs.get("server.name", null);
 	}
+	
+	public boolean getSSL() {
+		return prefs.getBoolean("server.ssl", false);
+	}
 
 	public String getUsername() {
 		return prefs.get("server.username", null);
 	}
 
 	public String getPassword() {
-
 		return prefs.get("server.password", null);
 	}
 

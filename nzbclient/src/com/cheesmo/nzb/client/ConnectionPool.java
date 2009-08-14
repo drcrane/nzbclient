@@ -33,7 +33,6 @@ public final class ConnectionPool {
 		
 		//Make sure we always disconnect
 		Runtime.getRuntime().addShutdownHook(new Thread() {
-
 			public void run() {
 				for (int i = 0; i < connCount; i++) {
 					connections[i].tryDisconnect();

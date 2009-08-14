@@ -28,8 +28,6 @@ public class DownloadThread extends Thread {
 		this.messageId = messageId;
 		this.downloadFileName = downloadFilename;
 		this.pool = pool;
-		
-		
 	}
 
 	public void run() {

@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.Semaphore;
 
 import com.cheesmo.nzb.codec.DecodingException;
 import com.cheesmo.nzb.codec.SplitFileInputStream;
@@ -39,8 +40,9 @@ import com.cheesmo.nzb.util.NzbUtils;
 
 public final class NzbClient {
 
+	public static final String CURRENT_NZB = "CurrentNZB.nzbclient";
 	public static final String COMPLETED_FILES = "CompletedFilesList.nzbclient";
-	public static final String CORRUPT_FILES = "CorruptFiles.nzbclient"; 
+	public static final String CORRUPT_FILES = "CorruptFiles.nzbclient";
 	
 	private ClientConfig config;
 	private Options options;
@@ -157,7 +159,7 @@ public final class NzbClient {
 		return;
 	}
 	
-	public void start(String nzbPath) {
+	public void new_start(String nzbPath) {
 
 		Runtime.getRuntime().addShutdownHook(new Thread() {
 			public void run() {
@@ -179,6 +181,42 @@ public final class NzbClient {
 				continue;
 			}
 			
+			
+		}
+		NzbClient.saveFileList(config.getCacheDir() + java.io.File.separator + COMPLETED_FILES, downloadedFiles);
+		NzbClient.saveFileList(config.getCacheDir() + java.io.File.separator + CORRUPT_FILES, corruptFiles);
+	}
+	
+	public void start(String nzbPath) {
+
+		Runtime.getRuntime().addShutdownHook(new Thread() {
+			public void run() {
+				NzbClient.saveFileList(config.getCacheDir() + java.io.File.separator + CORRUPT_FILES, corruptFiles);
+				NzbClient.saveFileList(config.getCacheDir() + java.io.File.separator + COMPLETED_FILES, downloadedFiles);
+			}			
+		});
+		
+		NZB nzb = getNzb(nzbPath);
+		List <File> files = nzb.getFiles();
+		
+		/*
+		if (1 == 1) {
+			return;
+		}
+		*/
+		
+		corruptFiles = loadFileList(config.getCacheDir() + java.io.File.separator + CORRUPT_FILES);
+		downloadedFiles = loadFileList(config.getCacheDir() + java.io.File.separator + COMPLETED_FILES);
+		int fileCount = 1;
+		for (Iterator<File> i = files.iterator(); i.hasNext(); ) {
+			File file = i.next();
+			
+			if (downloadedFiles.contains(file.getSubject())) {
+				System.out.println("Already got: " + file.getSubject());
+				fileCount++;
+				continue;
+			}
+			
 			int segCount = 1;
 			
 			System.out.println("File " + fileCount + "/" + files.size() + " " + file.getSubject());
@@ -187,7 +225,7 @@ public final class NzbClient {
 
 			for (Iterator<Segment> j = file.getSegments().iterator(); j.hasNext(); ) {
 				Segment seg = j.next();
-				String downloadName = Integer.toString(file.getSubject().hashCode()) + "_" + Integer.toString(seg.getNumber()) + ".yenc";
+				String downloadName = Integer.toString(fileCount) + "_" + Integer.toString(file.getSubject().hashCode()) + "_" + Integer.toString(seg.getNumber()) + ".yenc";
 				if ((new java.io.File(config.getCacheDir() + java.io.File.separator + downloadName)).exists()) {
 					//System.out.println("Already got segment: " + downloadName);
 					segCount ++;
@@ -196,6 +234,7 @@ public final class NzbClient {
 				}
 
 				//Thread thread = createDownloadSegThread(segCount, file.getGroups().get(0).getName(), "<" + seg.getString() + ">", downloadName);
+				
 				DownloadThread thread = createDownloadSegThread(pool, file.getGroups().get(0).getName(), "<" + seg.getString() + ">", downloadName);
 				thread.start();
 				try {
@@ -260,11 +299,16 @@ public final class NzbClient {
 			Collections.sort(segmentNames, new Comparator<String> () {
 
 				public int compare(String id1, String id2) {
+					id1 = id1.substring(id1.indexOf("_") + 1);
 					Integer segmentNumber1 = Integer.parseInt(id1.substring(id1.indexOf("_") + 1, id1.indexOf(".")));
+					id2 = id2.substring(id2.indexOf("_") + 1);
 					Integer segmentNumber2 = Integer.parseInt(id2.substring(id2.indexOf("_") + 1, id2.indexOf(".")));
 					return segmentNumber1.compareTo(segmentNumber2);
 				}});
 
+			//if (1 == 1)
+			//return;
+			
 			SplitFileInputStream sfis = new SplitFileInputStream(config.getCacheDir(), (String[])segmentNames.toArray(new String[segmentNames.size()]), !options.isKeepParts());
 			System.out.println("Decoding . . .");
 			YEncDecoder decoder = new YEncDecoder(sfis, config.getDownloadDir());
