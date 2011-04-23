@@ -70,7 +70,7 @@ public class YEncDecoder implements YEncConstants {
 				input = new BufferedInputStream(toDecode);
 			
 			byte [] bytes = new byte[512];
-			int bytesRead = readLine(input, bytes);
+			int bytesRead = StreamUtil.readLine(input, bytes);
 			if (bytesRead == -1) {
 				return null;
 			}
@@ -112,7 +112,7 @@ public class YEncDecoder implements YEncConstants {
 				} else if (decoding) {
 					bytesWritten += decodeLine(bytes, bytesRead, out);
 				}
-				bytesRead = readLine(input, bytes);
+				bytesRead = StreamUtil.readLine(input, bytes);
 				if (bytes != null && bytesRead > 1 && bytes[0] == '=' && bytes[1] == 'y')
 					line = new String(bytes, 0, bytesRead);	//parse the ypart
 				else if (bytesRead == -1){
@@ -146,39 +146,6 @@ public class YEncDecoder implements YEncConstants {
 	
 	public boolean segmentsMissing() {
 		return bitsMissing;
-	}
-	
-	/**
-	 * Read a line of data from the specified input stream into a byte array.
-	 * Characters are read until either a line feed (LF), or a carriage return
-	 * line feed (CRLF) are read.  Neither the CR or the LF are included in the
-	 * resulting buffer.
-	 * 
-	 * @param input stream to read from
-	 * @param buffer array to store the data in
-	 * @return the number of bytes in the buffer that are part of the line read
-	 * 
-	 * @throws IOException
-	 */
-	private int readLine(BufferedInputStream input, byte [] buffer) throws IOException {
-
-		int prev = -1;
-		for (int i = 0; i < buffer.length; i++) {
-			int read = input.read();
-			if (read == LF || read == NULL) {
-				if (i == 0)
-					return 0;
-				if (prev == CR) {
-					return i - 1;
-				} else {
-					return i;
-				}
-			} else {
-				prev = read;
-				buffer [i] = (byte) read;
-			}
-		}
-		return -1;
 	}
 	
 	/**

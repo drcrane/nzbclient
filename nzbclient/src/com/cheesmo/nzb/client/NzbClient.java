@@ -15,10 +15,13 @@
  */
 package com.cheesmo.nzb.client;
 
-import java.io.BufferedInputStream;
+/*
+ * java -cp nzbclient/lib/commons-io-1.2.jar:nzbclient/lib/commons-net-1.4.1.jar:nzbclient/codec/bin/:nzbclient/nanoxml/bin/:nzbclient/nzbclient/bin/:nzbclient/model/bin/ com.cheesmo.nzb.client.NzbClient filetodownload.nzb
+ * 
+ */
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -28,9 +31,10 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.Semaphore;
 
 import com.cheesmo.nzb.codec.DecodingException;
+import com.cheesmo.nzb.codec.EncodingProbe;
+import com.cheesmo.nzb.codec.SpacerootsDecoder;
 import com.cheesmo.nzb.codec.SplitFileInputStream;
 import com.cheesmo.nzb.codec.YEncDecoder;
 import com.cheesmo.nzb.model.File;
@@ -172,7 +176,7 @@ public final class NzbClient {
 		List <File> files = nzb.getFiles();
 		corruptFiles = loadFileList(config.getCacheDir() + java.io.File.separator + CORRUPT_FILES);
 		downloadedFiles = loadFileList(config.getCacheDir() + java.io.File.separator + COMPLETED_FILES);
-		int fileCount = 1;
+//		int fileCount = 1;
 		for (Iterator<File> i = files.iterator(); i.hasNext(); ) {
 			File file = i.next();
 			
@@ -310,17 +314,27 @@ public final class NzbClient {
 			//return;
 			
 			SplitFileInputStream sfis = new SplitFileInputStream(config.getCacheDir(), (String[])segmentNames.toArray(new String[segmentNames.size()]), !options.isKeepParts());
-			System.out.println("Decoding . . .");
-			YEncDecoder decoder = new YEncDecoder(sfis, config.getDownloadDir());
-			String fileDecoded = decoder.decode();
-			if (decoder.segmentsMissing() && fileDecoded != null) {
-				corruptFiles.add(fileDecoded);
-			}
+			System.out.print("Decoding... ");
 			
-			if (fileDecoded != null) {
-				System.out.println("Decoding " + fileDecoded + " complete.");
-			} else {
-				System.out.println("Couldn't decode.");
+			if (EncodingProbe.discoverEncoding(sfis) == EncodingProbe.UU_ENCODED) {
+				System.out.println("UUEncoding... giving it a try.");
+				
+				SpacerootsDecoder.uudecode(sfis, config.getDownloadDir());
+			}
+			else
+			if (EncodingProbe.discoverEncoding(sfis) == EncodingProbe.YENC_ENCODED) {
+				System.out.println("yEncoded!!");
+				YEncDecoder decoder = new YEncDecoder(sfis, config.getDownloadDir());
+				String fileDecoded = decoder.decode();
+				if (decoder.segmentsMissing() && fileDecoded != null) {
+					corruptFiles.add(fileDecoded);
+				}
+				
+				if (fileDecoded != null) {
+					System.out.println("Decoding " + fileDecoded + " complete.");
+				} else {
+					System.out.println("Couldn't decode.");
+				}
 			}
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
@@ -328,6 +342,8 @@ public final class NzbClient {
 		} catch (DecodingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} catch (IOException ioe) {
+			ioe.printStackTrace();
 		}
 	}
 

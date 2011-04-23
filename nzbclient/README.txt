@@ -1,9 +1,11 @@
 NZBClient Todo List - Ben Green http://www.bengreen.eu/
 
 - File sorting (to be improved - sort of works now)
-- UUEncoding support
 - Multithreaded downloads
 - File exclusion
+- Add Probing to SplitFileInputStream
+- Remodel YEncDecoder to fit AbstractDecoder.
+- UUEncoding support
 
 Added Support
 

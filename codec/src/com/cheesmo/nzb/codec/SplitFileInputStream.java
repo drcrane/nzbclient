@@ -6,7 +6,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 
-
 public class SplitFileInputStream extends InputStream {
 	
 	String dir = null;
@@ -14,12 +13,12 @@ public class SplitFileInputStream extends InputStream {
 	FileInputStream currentFileInputStream = null;
 	int currentSegment = -1;
 	boolean deleteWhenFinished;
-
 	
 	public SplitFileInputStream(String dir, String [] filenames, boolean deleteWhenFinished) throws FileNotFoundException {
 		this.dir = dir;
 		this.filenames = filenames;
 		this.deleteWhenFinished = deleteWhenFinished;
+		System.out.println("No Fn: " + filenames.length);
 		startNextSegment();
 	}
 
@@ -39,6 +38,7 @@ public class SplitFileInputStream extends InputStream {
 			
 			currentFileInputStream = null;
 			currentFileInputStream = new FileInputStream(new File(dir, filenames[currentSegment]));
+			System.out.println("Starting: " + filenames[currentSegment]);
 		} else {
 			if (currentFileInputStream != null) {
 				try {
@@ -65,6 +65,34 @@ public class SplitFileInputStream extends InputStream {
 				file.deleteOnExit();
 			}
 		}
+	}
+	
+	@Override
+	public boolean markSupported() {
+		return false;
+	}
+	
+	@Override
+	public void mark(int s) {
+		System.out.println("Mark Called: " + s);
+	}
+	
+	@Override
+	public void reset() throws IOException {
+		if (currentFileInputStream != null) {
+			currentFileInputStream.close();
+		}
+		currentFileInputStream = null;
+		currentSegment = -1;
+		/*
+		System.out.println("Reset Called");
+		try {
+			throw new IOException("Probelmmw");
+		} catch (IOException ioe) {
+			ioe.printStackTrace();
+		}
+		*/
+		startNextSegment();
 	}
 
 	public int read() throws IOException {
@@ -96,6 +124,9 @@ public class SplitFileInputStream extends InputStream {
 		if (currentFileInputStream == null)
 			return -1;
 		int val = currentFileInputStream.read(arg0);
+		if (val == 0) {
+			System.out.println("Honey it is broken!");
+		}
 		if (val == -1) {
 			startNextSegment();
 			return read(arg0);
@@ -107,6 +138,9 @@ public class SplitFileInputStream extends InputStream {
 		if (currentFileInputStream == null)
 			return -1;
 		int val = currentFileInputStream.read(arg0, arg1, arg2);
+		if (val == 0) {
+			System.err.println("Honk Honk!!!!");
+		}
 		if (val == -1) {
 			startNextSegment();
 			return read(arg0, arg1, arg2);
